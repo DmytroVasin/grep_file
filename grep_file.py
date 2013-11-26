@@ -1,90 +1,56 @@
 import sublime, sublime_plugin
 import os, re
 
-def is_legal_path_char(c):
-    # XXX make this platform-specific?
-    return c not in " \n\"|*<>{}[](),\':"
+def is_folder(path, action):
+    regex = re.compile(action)
+    return regex.findall(path)
 
-def move_while_path_character(view, start, is_at_boundary, increment=1):
-    while True:
-        if not is_legal_path_char(view.substr(start)):
-            break
-        start = start + increment
-        if is_at_boundary(start):
-            break
-    return start
+def generate_prefix(path, folder_name):
+    if folder_name == 'controller':
+        return path.rstrip('_controller.rb').split('/controllers/')[1] + '/'
+    elif folder_name == 'view':
+        current_path = os.path.dirname(path)
+        return current_path.split('/app/views/')[1] + '/'
+    else:
+        return ''
 
-def is_controller(dir):
-    regex = re.compile('(controllers)')
-    match = regex.findall(dir)
-    return match
+def generate_file_name(path, action_name, folder_name):
+    if re.search(r"def\s", action_name):
+        # if matched action of controller
+        path = generate_prefix(path, folder_name)
+        action_name = action_name.replace("def ", "")
+    elif re.match(r'[@:]', action_name):
+        # render :edit || @products
+        action_name = action_name[1:-1]
+        path = generate_prefix(path, folder_name)
+    elif len(action_name.split('/')) > 1:
+        # render template: 'account/account_admin/surveys/show' ( absolute path )
+        action_name = action_name.replace("'", "").replace('"', '')
+        path = ''
+    else:
+        # render 'new' ( relative path )
+        path = generate_prefix(path, folder_name)
+        action_name = action_name.replace("'", "").replace('"', '')
 
-def with_path(fname):
-    regex = re.compile('(\S*/\S+)')
-    match = regex.findall(fname)
-    return match
+    path += action_name
+    return path
+
+def get_action_name(self):
+    sel = self.view.sel()[0]
+    return ( str(self.view.substr(sel)), sel )
 
 class GrepFileCommand(sublime_plugin.TextCommand):
     def run(self, edit):
-        prefix = ""
+        path = str(self.view.file_name())
+        action_name, sel = get_action_name(self)
+        if sel.empty():
+            self.view.window().run_command("expand_selection", {"to": "scope"} )
+            action_name, sel = get_action_name(self)
 
-        caret_pos = self.view.sel()[0].begin()
-        current_line = self.view.line(caret_pos)
-        line_text = self.view.substr(sublime.Region(current_line.begin(), current_line.end()))
+        if is_folder(path, '(controllers)'):
+            path = generate_file_name(path, action_name, 'controller')
+        if is_folder(path, '(app/view)'):
+            path = generate_file_name(path, action_name, 'view')
 
-        dir = self.get_working_dir()
-
-        if is_controller(dir):
-            prefix = self.prefix_for_controller(line_text)
-        else:
-            True
-
-        sel = self.view.sel()[0]
-        if not sel.empty():
-            file_name = self.view.substr(sel)
-        else:
-            
-
-            left = move_while_path_character(
-                                            self.view,
-                                            caret_pos,
-                                            lambda x: x < current_line.begin(),
-                                            increment=-1)
-            right = move_while_path_character(
-                                            self.view,
-                                            caret_pos,
-                                            lambda x: x > current_line.end(),
-                                            increment=1)
-            file_name = self.view.substr(sublime.Region(left + 1, right))
-            if with_path(file_name):
-                prefix = ""
-            else:
-                True
-            self.view.window().run_command("show_overlay", {"overlay": "goto", "show_files": True, "text": prefix + file_name} )
-
-        # file_name = os.path.join(os.path.dirname(self.view.file_name()),
-        #                             file_name)
-        # if os.path.exists(file_name):
-        #     self.view.window().open_file(file_name)
-    def get_working_dir(self):
-        file_name = self._active_file_name()
-        if file_name:
-          return os.path.dirname(file_name)
-        else:
-          return self.window.folders()[0]
-
-    def _active_file_name(self):
-        view = self.view;
-        if view and view.file_name() and len(view.file_name()) > 0:
-          return view.file_name()
-
-    def prefix_for_controller(self, line):
-        regex = re.compile('(def|render)')
-        match = regex.findall(line)
-        regex = re.compile('\S+\/(\S+)_controller')
-        full_name = self._active_file_name()
-        fname = regex.findall(full_name)
-        if fname:
-            return fname[0] + '/'
-        else:
-            return ""
+        # self.view.sel().clear()
+        self.view.window().run_command("show_overlay", {"overlay": "goto", "show_files": True, "text": "app/view/"+path} )
