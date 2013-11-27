@@ -38,3 +38,7 @@ Preferences/Key Bindings - User/
 		render :orders_table
 		render 'orders_table'
 		render 'shared/flash_messages'
+
+### Demo:
+
+![Path Helper Demo](http://s23.postimg.org/7htdmgoy3/output_optimized.gif)
