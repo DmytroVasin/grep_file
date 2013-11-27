@@ -3,23 +3,17 @@ grep_file
 
 Sublime plugin for ease opening "View" in Rails.
 
-add key binding:
-Preferences/Key Bindings - User/
-
-	[
-		{ "keys": ["shift+ctrl+g"], "command": "grep_file" }
-	]
-
 ### Instalations:
 
 	cd ~/Library/Application\ Support/Sublime\ Text\ 3/Packages
 	git clone git@github.com:ArtyomTs/grep_file.git
 
-### Removing:
+### Add key binding:
+Preferences/Key Bindings - User/
 
-	CMD + Shift + P
-	Package Control: Remove Package
-	choose "grep_file"
+	[
+		{ "keys": ["shift+ctrl+g"], "command": "grep_file" }
+	]
 
 ### Usage:
 
